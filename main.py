@@ -5,14 +5,14 @@ import os
 from telegram import Bot
 
 SEARCH_URL = "https://tehnoskarb.ua/ru/mobilnye-telefony-i-smartfony/c1/filter/vendor%3D294"
-KEYWORDS = ["iphone air", "iphone 16"]
+KEYWORDS = ["iphone air", "iphone 16", "iphone 16 pro", "iphone 17"]
 CHECK_INTERVAL = 600
 
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 CHAT_ID = os.getenv("CHAT_ID")
 
 bot = Bot(token=TELEGRAM_TOKEN)
-
+bot.send_message(chat_id=CHAT_ID, text="✅ Бот запущен и работает")
 headers = {
     "User-Agent": "Mozilla/5.0"
 }
