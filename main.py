@@ -1,12 +1,12 @@
 import requests
 from bs4 import BeautifulSoup
-import time
 import os
 import asyncio
 from telegram import Bot
+import re
 
 SEARCH_URL = "https://tehnoskarb.ua/ru/mobilnye-telefony-i-smartfony/c1/filter/vendor%3D294"
-KEYWORDS = ["iphone air", "iphone 16", "iphone 17", "iphone 15 pro"]
+KEYWORDS = ["iphone air", "iphone 16"]
 CHECK_INTERVAL = 600
 
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
@@ -16,34 +16,56 @@ headers = {
     "User-Agent": "Mozilla/5.0"
 }
 
-found = set()
+# Сохраняем товары: {url: price}
+products = {}
+
+def extract_price(text):
+    match = re.search(r"\d[\d\s]*", text)
+    if match:
+        return int(match.group().replace(" ", ""))
+    return None
 
 async def check_site(bot):
-    global found
+    global products
 
     r = requests.get(SEARCH_URL, headers=headers)
     soup = BeautifulSoup(r.text, "html.parser")
 
-    for item in soup.find_all("a", href=True):
-        title = item.get_text(strip=True).lower()
+    cards = soup.find_all("a", href=True)
+
+    for card in cards:
+        title = card.get_text(strip=True).lower()
 
         if any(keyword in title for keyword in KEYWORDS):
-            url = "https://tehnoskarb.ua" + item["href"]
-            key = (title, url)
+            url = "https://tehnoskarb.ua" + card["href"]
 
-            if key not in found:
-                found.add(key)
+            parent = card.parent.get_text(" ", strip=True)
+            price = extract_price(parent)
+
+            if not price:
+                continue
+
+            if url not in products:
+                products[url] = price
                 await bot.send_message(
                     chat_id=CHAT_ID,
-                    text=f"🔥 Новый товар!\n\n{title}\n{url}"
+                    text=f"🔥 Новый товар!\n\n{title}\n💰 {price} грн\n{url}"
                 )
+            else:
+                old_price = products[url]
+                if price < old_price:
+                    products[url] = price
+                    await bot.send_message(
+                        chat_id=CHAT_ID,
+                        text=f"📉 Цена снижена!\n\n{title}\nБыло: {old_price} грн\nСтало: {price} грн\n{url}"
+                    )
 
 async def main():
     bot = Bot(token=TELEGRAM_TOKEN)
 
     await bot.send_message(
         chat_id=CHAT_ID,
-        text="✅ Бот запущен и работает"
+        text="✅ Бот запущен с отслеживанием цены"
     )
 
     while True:
